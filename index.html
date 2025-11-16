@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Operation Elf Reveal - draw your Elf</title>
+  <title>Secret Elf Nickname Draw</title>
+  <!-- Inline favicon to avoid 404s -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='48' x='8' font-size='48'%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -187,51 +189,30 @@
   <script>
     (function(){
       'use strict';
-      const onReady = (fn) => {
-        if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(fn, 0); }
-        else { document.addEventListener('DOMContentLoaded', fn); }
-      };
+      function onReady(fn){ if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(fn, 0); } else { document.addEventListener('DOMContentLoaded', fn); } }
 
       onReady(function(){
         console.log('[ElfDraw] App starting…');
         // ---- Constants / Utilities ----
-        const KEY = 'elfdraw.v3';
+        const KEY = 'elfdraw.v4';
         const DEFAULT_PIN = '1234';
-        // FIX: robust newline regex (Windows/Unix). The previous pattern caused "Invalid regular expression".
-        const SAFE_NEWLINE = /\r?\n+/;
-        const NL = '\\n';
+        const SAFE_NEWLINE = /
+?
++/; // robust across Windows/Unix newlines
 
         const GIVEN_23 = [
           'Cozy Elf','Bloom Elf','Sparkle Elf','Peaceful Elf','Snowflake Elf','Baker Elf','Think Tank Elf','Party Elf','Pixel Elf','Heartfelt Elf','Explorer Chef Elf','Freewheel Elf','Chill Wave Elf','Playmaker Elf','Smile Elf','Wanderlust Elf','Chatty Elf','Mystery Elf','Mighty Elf','Curious Whisker Elf','Wander Elf','Dazzle Elf','Glamour Elf'
         ];
 
-        function nowISO() { return new Date().toISOString(); }
+        function nowISO(){ return new Date().toISOString(); }
         function toast(msg){ alert(msg); }
-
-        function loadState() {
-          try {
-            return JSON.parse(localStorage.getItem(KEY)) || {
-              pinHash: sha1(DEFAULT_PIN),
-              mode: 'local',
-              nicknames: [],
-              pool: [],
-              codes: [],
-              takenByCode: {},
-              history: [],
-              brand: { title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null }
-            };
-          } catch {
-            return { pinHash: sha1(DEFAULT_PIN), mode:'local', nicknames:[], pool:[], codes:[], takenByCode:{}, history:[], brand:{ title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null } };
-          }
-        }
-
-        function saveState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
-        // Tiny hash (obfuscation only; not cryptographic)
-        function sha1(str){ let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return String(h>>>0); }
+        function sha1(str){ let h=0; for (let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return String(h>>>0); }
+        function loadState(){ try { return JSON.parse(localStorage.getItem(KEY)) || { pinHash: sha1(DEFAULT_PIN), mode:'local', nicknames:[], pool:[], codes:[], takenByCode:{}, history:[], brand:{ title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null } }; } catch(e){ return { pinHash: sha1(DEFAULT_PIN), mode:'local', nicknames:[], pool:[], codes:[], takenByCode:{}, history:[], brand:{ title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null } }; } }
+        function saveState(s){ localStorage.setItem(KEY, JSON.stringify(s)); }
 
         let state = loadState();
 
-        // ---- UI Elements ----
+        // ---- Elements ----
         const els = {
           modePill: document.getElementById('mode-pill'),
           codeInput: document.getElementById('code-input'),
@@ -267,7 +248,6 @@
 
           assignmentsBody: document.getElementById('assignments-body'),
 
-          // branding
           eventTitle: document.getElementById('event-title'),
           eventSub: document.getElementById('event-sub'),
           orgLogo: document.getElementById('org-logo'),
@@ -276,32 +256,28 @@
           brandColor: document.getElementById('brand-color'),
           brandLogo: document.getElementById('brand-logo'),
           btnApplyBrand: document.getElementById('btn-apply-brand'),
-          btnClearBrand: document.getElementById('btn-clear-brand'),
+          btnClearBrand: document.getElementById('btn-clear-brand')
         };
 
-        if (!els.btnOrganizer || !els.btnDraw){
-          console.error('[ElfDraw] Critical elements missing; check HTML IDs.');
-          alert('Load error: some elements not found. Please refresh the page (Ctrl/Cmd+Shift+R).');
-          return;
-        }
-
+        // ---- Functions ----
         function applyBranding(){
           els.eventTitle.textContent = state.brand.title || '🎁 Secret Elf Nickname Draw';
           els.eventSub.textContent = state.brand.sub || 'Anonymous, nickname‑only gift exchange';
           document.documentElement.style.setProperty('--accent', hexToRgbTuple(state.brand.color || '#6366F1').join(' '));
-          if (state.brand.logoData) { els.orgLogo.src = state.brand.logoData; els.orgLogo.classList.remove('hidden'); }
-          else { els.orgLogo.classList.add('hidden'); }
-          els.brandTitle.value = state.brand.title || '';
-          els.brandSub.value = state.brand.sub || '';
-          els.brandColor.value = state.brand.color || '#6366F1';
+          if (state.brand.logoData) { els.orgLogo.src = state.brand.logoData; els.orgLogo.classList.remove('hidden'); } else { els.orgLogo.classList.add('hidden'); }
+          if (els.brandTitle) els.brandTitle.value = state.brand.title || '';
+          if (els.brandSub) els.brandSub.value = state.brand.sub || '';
+          if (els.brandColor) els.brandColor.value = state.brand.color || '#6366F1';
         }
 
         function renderAssignments(){
           els.assignmentsBody.innerHTML = '';
-          const entries = Object.entries(state.takenByCode).sort((a,b)=>a[0].localeCompare(b[0]));
-          let i=1;
-          for (const [code, rec] of entries){
-            const tr = document.createElement('tr');
+          const entries = Object.entries(state.takenByCode).sort(function(a,b){ return a[0].localeCompare(b[0]); });
+          var i=1;
+          for (var k=0;k<entries.length;k++){
+            var code = entries[k][0];
+            var rec = entries[k][1];
+            var tr = document.createElement('tr');
             tr.innerHTML = '<td class="p-2 border-b">'+(i++)+'</td>'+
                            '<td class="p-2 border-b font-mono">'+code+'</td>'+
                            '<td class="p-2 border-b">'+rec.name+'</td>'+
@@ -309,197 +285,96 @@
                            '<td class="p-2 border-b"><button class="btn text-xs" data-code="'+code+'">Undo</button></td>';
             els.assignmentsBody.appendChild(tr);
           }
-          els.assignmentsBody.querySelectorAll('button[data-code]').forEach(btn=>{
-            btn.addEventListener('click', () => undoAssignment(btn.getAttribute('data-code')));
-          });
+          var btns = els.assignmentsBody.querySelectorAll('button[data-code]');
+          for (var b=0;b<btns.length;b++){
+            btns[b].addEventListener('click', function(){ undoAssignment(this.getAttribute('data-code')); });
+          }
         }
 
         function undoAssignment(code){
           if (!confirm('Undo assignment for '+code+'?')) return;
-          const rec = state.takenByCode[code]; if (!rec) return;
+          var rec = state.takenByCode[code]; if (!rec) return;
           state.pool.push(rec.name);
           delete state.takenByCode[code];
-          state.history.push({type:'undo', code, at: nowISO()});
+          state.history.push({type:'undo', code:code, at: nowISO()});
           saveState(state); renderAssignments(); toast('Assignment undone and nickname returned to pool.');
         }
 
         function ensurePoolMatchesNicknames(){
-          const taken = new Set(Object.values(state.takenByCode).map(r=>r.name));
-          state.pool = state.nicknames.filter(n => !taken.has(n));
+          var taken = new Set(Object.values(state.takenByCode).map(function(r){ return r.name; }));
+          state.pool = state.nicknames.filter(function(n){ return !taken.has(n); });
         }
 
         function updateModePill(){ els.modePill.textContent = 'Single‑device mode'; }
 
-        // ---- Event wiring ----
-        els.btnOrganizer.addEventListener('click', () => { els.organizerPanel.classList.toggle('hidden'); });
+        function hexToRgbTuple(hex){ hex = hex.replace('#',''); if (hex.length===3){ hex = hex.split('').map(function(x){return x+x;}).join(''); } var num = parseInt(hex,16); return [ (num>>16)&255, (num>>8)&255, num&255 ]; }
+        function fileToDataUrl(file){ return new Promise(function(res, rej){ var rd = new FileReader(); rd.onload=function(){res(rd.result);}; rd.onerror=rej; rd.readAsDataURL(file); }); }
 
-        els.btnReset.addEventListener('click', () => {
-          const pin = prompt('Enter admin PIN to reset view:'); if (!pin) return;
-          if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; }
-          els.result.classList.add('hidden'); els.nickname.textContent = ''; els.codeInput.value = ''; toast('View cleared.');
-        });
+        // ---- Event listeners ----
+        els.btnOrganizer.addEventListener('click', function(){ els.organizerPanel.classList.toggle('hidden'); });
+        els.btnReset.addEventListener('click', function(){ var pin = prompt('Enter admin PIN to reset view:'); if (!pin) return; if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; } els.result.classList.add('hidden'); els.nickname.textContent=''; els.codeInput.value=''; toast('View cleared.'); });
+        els.btnUnlock.addEventListener('click', function(){ window.ElfDraw && window.ElfDraw.unlock(); });
 
-        els.btnUnlock.addEventListener('click', () => {
-          const pin = els.pinInput.value.trim();
-          if (sha1(pin) === state.pinHash){
-            els.adminLocked.classList.add('hidden');
-            els.adminArea.classList.remove('hidden');
-            els.pinInput.value = '';
-            renderAssignments(); applyBranding();
-          } else { toast('Incorrect PIN'); }
-        });
+        els.btnLoadDefaults.addEventListener('click', function(){ els.nicknamesInput.value = GIVEN_23.join('
+'); toast('Loaded the 23 provided elf nicknames. Click Save nicknames.'); });
+        els.btnShuffle.addEventListener('click', function(){ var lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(function(s){return s.trim();}).filter(Boolean); for (var i=lines.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=lines[i]; lines[i]=lines[j]; lines[j]=t; } els.nicknamesInput.value = lines.join('
+'); });
+        els.btnSaveNicknames.addEventListener('click', function(){ var lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(function(s){return s.trim();}).filter(Boolean); if (lines.length===0){ toast('Please enter at least one nickname.'); return; } state.nicknames = Array.from(new Set(lines)); ensurePoolMatchesNicknames(); saveState(state); renderAssignments(); toast('Saved '+state.nicknames.length+' nicknames.'); });
 
-        els.btnLoadDefaults.addEventListener('click', () => {
-          els.nicknamesInput.value = GIVEN_23.join('\n');
-          toast('Loaded the 23 provided elf nicknames. Click Save nicknames.');
-        });
+        els.btnGenerateCodes.addEventListener('click', function(){ var count=23; var codes=[]; for (var i=1;i<=count;i++){ codes.push('P'+String(i).padStart(2,'0')); } els.codesInput.value = codes.join('
+'); });
+        els.btnSaveCodes.addEventListener('click', function(){ var codes = els.codesInput.value.split(SAFE_NEWLINE).map(function(s){return s.trim().toUpperCase();}).filter(Boolean); if (codes.length===0){ toast('Please enter at least one join code.'); return; } state.codes = Array.from(new Set(codes)); saveState(state); renderAssignments(); toast('Saved '+state.codes.length+' join codes.'); });
+        if (els.btnCopyCodes) els.btnCopyCodes.addEventListener('click', async function(){ var text = els.codesInput.value.trim(); if (!text){ toast('No codes to copy.'); return; } try { await navigator.clipboard.writeText(text); toast('Codes copied to clipboard.'); } catch(e) { toast('Copy failed.'); } });
 
-        els.btnShuffle.addEventListener('click', () => {
-          let lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
-          for (let i=lines.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t = lines[i]; lines[i]=lines[j]; lines[j]=t; }
-          els.nicknamesInput.value = lines.join('\n');
-        });
+        els.btnExport.addEventListener('click', function(){ var blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href=url; a.download='elf-draw-state.json'; a.click(); URL.revokeObjectURL(url); });
+        els.importFile.addEventListener('change', function(e){ var file=e.target.files[0]; if (!file) return; var rd=new FileReader(); rd.onload=function(){ try{ var imported=JSON.parse(rd.result); if (!imported || typeof imported!=='object') throw new Error('Invalid JSON'); state=imported; saveState(state); renderAssignments(); ensurePoolMatchesNicknames(); updateModePill(); applyBranding(); toast('State imported.'); } catch(err){ toast('Import failed: '+err.message); } }; rd.readAsText(file); e.target.value=''; });
 
-        els.btnSaveNicknames.addEventListener('click', () => {
-          const lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
-          if (lines.length === 0) { toast('Please enter at least one nickname.'); return; }
-          state.nicknames = Array.from(new Set(lines));
-          ensurePoolMatchesNicknames(); saveState(state); renderAssignments();
-          toast('Saved '+state.nicknames.length+' nicknames.');
-        });
-
-        els.btnGenerateCodes.addEventListener('click', () => {
-          const count = 23; // default for your event
-          const codes = Array.from({length: count}, (_,i)=> 'P'+String(i+1).padStart(2,'0'));
-          els.codesInput.value = codes.join('\n');
-        });
-
-        els.btnSaveCodes.addEventListener('click', () => {
-          const codes = els.codesInput.value.split(SAFE_NEWLINE).map(s=>s.trim().toUpperCase()).filter(Boolean);
-          if (codes.length === 0) { toast('Please enter at least one join code.'); return; }
-          state.codes = Array.from(new Set(codes)); saveState(state); renderAssignments();
-          toast('Saved '+state.codes.length+' join codes.');
-        });
-
-        if (els.btnCopyCodes) els.btnCopyCodes.addEventListener('click', async () => {
-          const text = els.codesInput.value.trim(); if (!text) { toast('No codes to copy.'); return; }
-          try { await navigator.clipboard.writeText(text); toast('Codes copied to clipboard.'); } catch { toast('Copy failed.'); }
-        });
-
-        els.btnExport.addEventListener('click', () => {
-          const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
-          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'elf-draw-state.json'; a.click(); URL.revokeObjectURL(url);
-        });
-
-        els.importFile.addEventListener('change', (e) => {
-          const file = e.target.files[0]; if (!file) return; const rd = new FileReader();
-          rd.onload = () => { try { const imported = JSON.parse(rd.result); if (!imported || typeof imported !== 'object') throw new Error('Invalid JSON'); state = imported; saveState(state); renderAssignments(); ensurePoolMatchesNicknames(); updateModePill(); applyBranding(); toast('State imported.'); } catch(err) { toast('Import failed: '+err.message); } };
-          rd.readAsText(file); e.target.value='';
-        });
-
-        els.btnChangePin.addEventListener('click', () => {
-          const current = prompt('Enter current PIN:'); if (!current || sha1(current) !== state.pinHash) { toast('Wrong PIN'); return; }
-          const next = prompt('Enter new PIN (4+ digits):'); if (!next || next.length < 4) { toast('PIN must be at least 4 characters.'); return; }
-          state.pinHash = sha1(next); saveState(state); toast('PIN changed.');
-        });
-
-        els.btnHardReset.addEventListener('click', () => {
-          const p1 = prompt('Enter admin PIN to hard reset:'); if (!p1 || sha1(p1) !== state.pinHash) { toast('Wrong PIN'); return; }
-          if (!confirm('Clear assignments and restore full nickname pool?')) return;
-          state.takenByCode = {}; state.history = []; ensurePoolMatchesNicknames(); saveState(state); renderAssignments(); toast('Hard reset complete.');
-        });
-
+        els.btnChangePin.addEventListener('click', function(){ var current=prompt('Enter current PIN:'); if (!current || sha1(current)!==state.pinHash){ toast('Wrong PIN'); return; } var next=prompt('Enter new PIN (4+ digits):'); if (!next || next.length<4){ toast('PIN must be at least 4 characters.'); return; } state.pinHash = sha1(next); saveState(state); toast('PIN changed.'); });
+        els.btnHardReset.addEventListener('click', function(){ var p1=prompt('Enter admin PIN to hard reset:'); if (!p1 || sha1(p1)!==state.pinHash){ toast('Wrong PIN'); return; } if (!confirm('Clear assignments and restore full nickname pool?')) return; state.takenByCode={}; state.history=[]; ensurePoolMatchesNicknames(); saveState(state); renderAssignments(); toast('Hard reset complete.'); });
         if (els.btnRunTests) els.btnRunTests.addEventListener('click', runSelfTests);
 
-        els.btnDraw.addEventListener('click', () => {
-          const code = els.codeInput.value.trim().toUpperCase();
-          if (!code) { toast('Enter your join code (ask the organizer).'); return; }
-          if (!state.codes.includes(code)) { toast('Unknown join code.'); return; }
-          if (state.takenByCode[code]) { els.nickname.textContent = state.takenByCode[code].name; els.result.classList.remove('hidden'); return; }
-          if (state.pool.length === 0) { toast('No nicknames left. Ask the organizer.'); return; }
+        els.btnDraw.addEventListener('click', function(){ var code = els.codeInput.value.trim().toUpperCase(); if (!code){ toast('Enter your join code (ask the organizer).'); return; } if (state.codes.indexOf(code)===-1){ toast('Unknown join code.'); return; } if (state.takenByCode[code]){ els.nickname.textContent = state.takenByCode[code].name; els.result.classList.remove('hidden'); return; } if (state.pool.length===0){ toast('No nicknames left. Ask the organizer.'); return; } var idx=Math.floor(Math.random()*state.pool.length); var name=state.pool.splice(idx,1)[0]; state.takenByCode[code]={ name:name, at: nowISO() }; state.history.push({type:'assign', code:code, name:name, at: nowISO()}); saveState(state); els.nickname.textContent=name; els.result.classList.remove('hidden'); renderAssignments(); });
 
-          // Randomly pick from pool (guarantees uniqueness because we remove it)
-          const idx = Math.floor(Math.random() * state.pool.length);
-          const name = state.pool.splice(idx, 1)[0];
-          state.takenByCode[code] = { name, at: nowISO() };
-          state.history.push({type:'assign', code, name, at: nowISO()});
-          saveState(state);
-          els.nickname.textContent = name; els.result.classList.remove('hidden'); renderAssignments();
-        });
+        // Branding events
+        if (els.btnApplyBrand) els.btnApplyBrand.addEventListener('click', async function(){ state.brand.title = els.brandTitle.value || '🎁 Secret Elf Nickname Draw'; state.brand.sub = els.brandSub.value || 'Anonymous, nickname‑only gift exchange'; state.brand.color = els.brandColor.value || '#6366F1'; var file = els.brandLogo && els.brandLogo.files && els.brandLogo.files[0]; if (file){ state.brand.logoData = await fileToDataUrl(file); } saveState(state); applyBranding(); toast('Branding applied.'); });
+        if (els.btnClearBrand) els.btnClearBrand.addEventListener('click', function(){ state.brand = { title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null }; saveState(state); applyBranding(); });
 
-        // Branding helpers
-        function hexToRgbTuple(hex){ hex = hex.replace('#',''); if (hex.length===3){ hex = hex.split('').map(x=>x+x).join(''); } const num = parseInt(hex,16); return [ (num>>16)&255, (num>>8)&255, num&255 ]; }
-        async function fileToDataUrl(file){ return await new Promise((res, rej)=>{ const rd = new FileReader(); rd.onload = ()=>res(rd.result); rd.onerror = rej; rd.readAsDataURL(file); }); }
-
-        els.btnApplyBrand.addEventListener('click', async () => {
-          state.brand.title = els.brandTitle.value || '🎁 Secret Elf Nickname Draw';
-          state.brand.sub = els.brandSub.value || 'Anonymous, nickname‑only gift exchange';
-          state.brand.color = els.brandColor.value || '#6366F1';
-          const file = els.brandLogo.files && els.brandLogo.files[0]; if (file) { state.brand.logoData = await fileToDataUrl(file); }
-          saveState(state); applyBranding(); toast('Branding applied.');
-        });
-
-        els.btnClearBrand.addEventListener('click', () => { state.brand = { title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null }; saveState(state); applyBranding(); });
-
-        // ---- Self-tests ----
+        // Self-tests
         function runSelfTests(){
           console.clear();
           console.log('Running self-tests...');
-          // Test 1: GIVEN_23 integrity
           console.assert(GIVEN_23.length === 23, 'GIVEN_23 should have 23 names');
           console.assert(new Set(GIVEN_23).size === 23, 'GIVEN_23 contains duplicates');
-
-          // Test 2: Split/join roundtrip using robust newline regex
-          const joined = GIVEN_23.join('\n');
-          const split = joined.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
+          var joined = GIVEN_23.join('
+');
+          var split = joined.split(SAFE_NEWLINE).map(function(s){return s.trim();}).filter(Boolean);
           console.assert(split.length === 23, 'Split on SAFE_NEWLINE should yield 23');
-
-          // Test 3: Uniqueness in simulated draws
-          const simPool = [...GIVEN_23]; const seen = new Set();
-          for (let i=0;i<23;i++){ const idx = Math.floor(Math.random()*simPool.length); const name = simPool.splice(idx,1)[0]; console.assert(!seen.has(name), 'Duplicate draw: '+name); seen.add(name); }
+          var simPool = GIVEN_23.slice(); var seen = new Set(); for (var i=0;i<23;i++){ var idx=Math.floor(Math.random()*simPool.length); var nm=simPool.splice(idx,1)[0]; console.assert(!seen.has(nm), 'Duplicate draw: '+nm); seen.add(nm); }
           console.assert(simPool.length===0, 'Pool should be empty after 23 draws');
-
-          // Test 4: CRLF handling (Windows newlines) explicitly
-          const crlf = 'A\r\nB\r\nC';
-          const out = crlf.split(SAFE_NEWLINE);
-          console.assert(out.length === 3 && out[0]==='A' && out[1]==='B' && out[2]==='C', 'CRLF split failed');
-
-          // Test 5: Attempt to over-draw beyond pool size should block
-          const tmpState = { pool:[...GIVEN_23] };
-          let blocked = false; for (let i=0;i<24;i++){ if (tmpState.pool.length===0){ blocked = true; break; } tmpState.pool.splice(Math.floor(Math.random()*tmpState.pool.length),1); }
-          console.assert(blocked, 'Over-draw should be blocked when pool is empty');
-
+          var crlf = 'A
+B
+C'; var out = crlf.split(SAFE_NEWLINE); console.assert(out.length===3 && out[0]==='A' && out[1]==='B' && out[2]==='C', 'CRLF split failed');
+          var tmp = { pool: GIVEN_23.slice() }; var blocked=false; for (var t=0;t<24;t++){ if (tmp.pool.length===0){ blocked=true; break; } tmp.pool.splice(Math.floor(Math.random()*tmp.pool.length),1); } console.assert(blocked, 'Over-draw should be blocked when pool is empty');
           console.log('Self-tests passed ✔'); alert('Self-tests passed ✔ (see console for details)');
         }
 
-        // ---- Initial load ----
-        function init(){
-          updateModePill(); applyBranding();
-          if (!state.nicknames || state.nicknames.length === 0) { els.nicknamesInput.value = GIVEN_23.join('\n'); els.btnSaveNicknames.click(); }
-          if (!state.codes || state.codes.length === 0) { els.btnGenerateCodes.click(); els.btnSaveCodes.click(); }
-        }
-
+        // Init
+        function init(){ updateModePill(); applyBranding(); if (!state.nicknames || state.nicknames.length===0){ els.nicknamesInput.value = GIVEN_23.join('
+'); els.btnSaveNicknames.click(); } if (!state.codes || state.codes.length===0){ els.btnGenerateCodes.click(); els.btnSaveCodes.click(); } }
         init();
-        console.log('[ElfDraw] App ready.');
-        // Expose minimal API for inline onclick fallbacks & debugging
+
+        // Expose minimal API for inline fallbacks
         window.ElfDraw = {
-          toggleOrganizer(){ els.organizerPanel.classList.toggle('hidden'); },
-          resetView(){ const pin = prompt('Enter admin PIN to reset view:'); if (!pin) return; if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; } els.result.classList.add('hidden'); els.nickname.textContent=''; els.codeInput.value=''; toast('View cleared.'); },
-          unlock(){ const pin = els.pinInput.value.trim(); if (sha1(pin)===state.pinHash){ els.adminLocked.classList.add('hidden'); els.adminArea.classList.remove('hidden'); els.pinInput.value=''; renderAssignments(); applyBranding();} else { toast('Incorrect PIN'); } },
+          toggleOrganizer: function(){ els.organizerPanel.classList.toggle('hidden'); },
+          resetView: function(){ var pin = prompt('Enter admin PIN to reset view:'); if (!pin) return; if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; } els.result.classList.add('hidden'); els.nickname.textContent=''; els.codeInput.value=''; toast('View cleared.'); },
+          unlock: function(){ var pin = els.pinInput.value.trim(); if (sha1(pin)===state.pinHash){ els.adminLocked.classList.add('hidden'); els.adminArea.classList.remove('hidden'); els.pinInput.value=''; renderAssignments(); applyBranding(); } else { toast('Incorrect PIN'); } }
         };
-        const jsStatus = document.getElementById('js-status'); if (jsStatus){ jsStatus.textContent='JS initialized ✓'; jsStatus.classList.remove('hidden'); }
-      });
-    })();
-          // Watchdog: if JS didn't expose ElfDraw within 2s, show banner
-        setTimeout(function(){
-          if (!window.ElfDraw) {
-            const warn = document.createElement('div');
-            warn.className = 'card p-4 mb-4 text-red-800 bg-red-50 border border-red-200';
-            warn.textContent = '⚠️ Script init failed. Try a hard refresh (Ctrl/Cmd+Shift+R). If this persists, open DevTools → Console and share any red errors.';
-            const container = document.querySelector('.max-w-3xl');
-            container && container.prepend(warn);
-          }
-        }, 2000);
+        var jsStatus = document.getElementById('js-status'); if (jsStatus){ jsStatus.textContent='JS initialized ✓'; jsStatus.classList.remove('hidden'); }
+
+        // Watchdog if global wasn't set
+        setTimeout(function(){ if (!window.ElfDraw){ var warn=document.createElement('div'); warn.className='card p-4 mb-4 text-red-800 bg-red-50 border border-red-200'; warn.textContent='⚠️ Script init failed. Hard refresh with Ctrl/Cmd+Shift+R and check Console for errors.'; var container=document.querySelector('.max-w-3xl'); if (container) container.prepend(warn); } }, 2000);
+
+        console.log('[ElfDraw] App ready.');
       });
     })();
   </script>
