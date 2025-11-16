@@ -198,8 +198,7 @@
         const KEY = 'elfdraw.v3';
         const DEFAULT_PIN = '1234';
         // FIX: robust newline regex (Windows/Unix). The previous pattern caused "Invalid regular expression".
-        const SAFE_NEWLINE = /?
-+/; // robust across Windows/Unix newlines
+        const SAFE_NEWLINE =/\r?\n+/ robust across Windows/Unix newlines
         const NL = '\\n';
 
         const GIVEN_23 = [
