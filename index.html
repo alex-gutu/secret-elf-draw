@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Operation Elf Reveal - draw your Elf</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --accent: 99 102 241; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .card { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border-radius: 1rem; box-shadow: 0 10px 25px rgba(2,6,23,0.06); border: 1px solid #e2e8f0; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; padding:.5rem 1rem; border-radius:.75rem; box-shadow:0 1px 1px rgba(2,6,23,.05); border:1px solid #cbd5e1; transition:.15s transform, .15s box-shadow; }
+    .btn:hover{ box-shadow:0 4px 8px rgba(2,6,23,.08); }
+    .btn:active{ transform:scale(.99); }
+    .btn-primary { background-color: rgb(var(--accent)); color:#fff; border-color: rgb(var(--accent)); }
+    .btn-ghost { background:#fff; color:#334155; }
+    .muted { color:#64748b; font-size:.875rem; }
+    .pill { display:inline-flex; align-items:center; padding:.25rem .75rem; border-radius:999px; font-size:.75rem; background:#f1f5f9; border:1px solid #e2e8f0; }
+    .hidden { display:none; }
+    code { background:#f8fafc; padding:.1rem .35rem; border-radius:.4rem; border:1px solid #e2e8f0; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50">
+  <div class="max-w-3xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <img id="org-logo" alt="Logo" class="h-8 w-8 rounded-lg hidden"/>
+        <div>
+          <h1 id="event-title" class="text-2xl md:text-3xl font-bold">🎁 Secret Elf Nickname Draw</h1>
+          <p id="event-sub" class="muted">Anonymous, nickname‑only gift exchange</p>
+        </div>
+      </div>
+      <div class="space-x-2">
+        <span id="js-status" class="pill hidden">JS initializing…</span>
+        <button id="btn-organizer" class="btn btn-ghost" title="Organizer area" onclick="window.ElfDraw && window.ElfDraw.toggleOrganizer()">Organizer</button>
+        <button id="btn-reset" class="btn btn-ghost" title="Reset (admin PIN required)" onclick="window.ElfDraw && window.ElfDraw.resetView()">Reset</button>
+      </div>
+    </header>
+    <noscript>
+      <div class="card p-4 mb-4 text-amber-800 bg-amber-50 border border-amber-200">⚠️ JavaScript is disabled, so buttons will not work. Please enable JavaScript and reload.</div>
+    </noscript>
+
+    <!-- Participant View -->
+    <section id="participant-card" class="card p-6">
+      <div class="flex items-start justify-between">
+        <h2 class="text-xl font-semibold">Draw your Elf nickname</h2>
+        <span class="pill" id="mode-pill">Single‑device mode</span>
+      </div>
+
+      <p class="mt-2 text-slate-700">No names, no sign‑in. Enter your <span class="font-semibold">join code</span> (like <code>P01</code>) and click the button to draw a random Elf nickname. Only the organizer can see the full mapping.</p>
+
+      <div class="mt-4 grid md:grid-cols-3 gap-3">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-slate-700" for="code-input">Your join code</label>
+          <input id="code-input" type="text" placeholder="e.g., P01" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+        <div class="flex items-end">
+          <button id="btn-draw" class="btn btn-primary w-full">Draw my Elf name ✨</button>
+        </div>
+      </div>
+
+      <div id="result" class="hidden mt-6">
+        <div class="text-slate-700">Your Elf nickname is</div>
+        <div id="nickname" class="mt-1 text-3xl font-extrabold"></div>
+        <div class="muted mt-2">Take a screenshot or write it down. This screen won’t show it again once closed.</div>
+      </div>
+
+      <div class="muted mt-6">Tip: If you don’t have a join code, ask the organizer.</div>
+    </section>
+
+    <!-- Organizer Drawer / Modal -->
+    <section id="organizer-panel" class="card p-6 mt-6 hidden">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold">Organizer controls</h2>
+        <span class="pill">Private</span>
+      </div>
+
+      <div class="mt-4 grid md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Admin PIN</label>
+          <div class="mt-1 flex gap-2">
+            <input id="pin-input" type="password" class="w-full rounded-xl border-slate-300 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter PIN" />
+            <button id="btn-unlock" class="btn btn-primary" onclick="window.ElfDraw && window.ElfDraw.unlock()">Unlock</button>
+          </div>
+          <p class="muted mt-2">Default PIN is <code>1234</code> (change it below once unlocked).</p>
+
+          <div id="admin-locked" class="mt-4 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            Panel is locked. Enter PIN to manage nicknames, codes and view the mapping.</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Mode</label>
+          <div class="mt-1">
+            <select id="mode-select" class="w-full rounded-xl border-slate-300 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="local">Single‑device (no backend)</option>
+            </select>
+          </div>
+          <p class="muted mt-2">This single‑file app stores data in this device’s browser (localStorage). Use it on a shared kiosk/laptop or keep this tab open.</p>
+        </div>
+      </div>
+
+      <div id="admin-area" class="hidden mt-6">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Elf nicknames (one per line)</label>
+            <textarea id="nicknames-input" rows="10" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Cozy Elf&#10;Bloom Elf&#10;Sparkle Elf&#10;Peaceful Elf&#10;Snowflake Elf&#10;Baker Elf&#10;Think Tank Elf&#10;Party Elf&#10;Pixel Elf&#10;Heartfelt Elf&#10;Explorer Chef Elf&#10;Freewheel Elf&#10;Chill Wave Elf&#10;Playmaker Elf&#10;Smile Elf&#10;Wanderlust Elf&#10;Chatty Elf&#10;Mystery Elf&#10;Mighty Elf&#10;Curious Whisker Elf&#10;Wander Elf&#10;Dazzle Elf&#10;Glamour Elf"></textarea>
+            <div class="flex gap-2 mt-2">
+              <button id="btn-load-defaults" class="btn btn-ghost">Load given 23 names</button>
+              <button id="btn-shuffle" class="btn">Shuffle list</button>
+              <button id="btn-save-nicknames" class="btn btn-primary">Save nicknames</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Join codes (one per line)</label>
+            <textarea id="codes-input" rows="10" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-indigo-500 focus:border-indigo-500" placeholder="P01&#10;P02&#10;P03&#10;..."></textarea>
+            <div class="flex gap-2 mt-2">
+              <button id="btn-generate-codes" class="btn btn-ghost">Generate P01…P23</button>
+              <button id="btn-save-codes" class="btn btn-primary">Save codes</button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button id="btn-copy-codes" class="btn">Copy codes</button>
+              <button id="btn-export" class="btn">Export state</button>
+              <label class="btn">Import state<input id="import-file" type="file" accept="application/json" class="hidden" /></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6 mt-8">
+          <div class="card p-4">
+            <h3 class="font-semibold">Branding</h3>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Event title</label>
+            <input id="brand-title" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-indigo-500" placeholder="e.g., Amgen Holiday Exchange"/>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Subtitle</label>
+            <input id="brand-sub" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-indigo-500" placeholder="e.g., Lisbon Office — 2025"/>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Accent color</label>
+            <input id="brand-color" type="color" class="mt-1 w-16 h-10 rounded-md border border-slate-300 p-0" value="#6366F1"/>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Logo (optional)</label>
+            <input id="brand-logo" type="file" accept="image/*" class="mt-1"/>
+            <div class="mt-3 flex gap-2">
+              <button id="btn-apply-brand" class="btn btn-primary">Apply branding</button>
+              <button id="btn-clear-brand" class="btn">Clear</button>
+            </div>
+          </div>
+          <div class="card p-4">
+            <h3 class="font-semibold">Safety</h3>
+            <p class="muted">This flow assigns nicknames without ever storing personal names. Use codes only.</p>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Change PIN</label>
+            <button id="btn-change-pin" class="btn mt-1">Change PIN</button>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Hard reset</label>
+            <button id="btn-hard-reset" class="btn border-red-300 text-red-700 mt-1">Hard reset</button>
+            <label class="block text-sm font-medium text-slate-700 mt-3">Run self‑tests</label>
+            <button id="btn-run-tests" class="btn mt-1">Run tests</button>
+          </div>
+        </div>
+
+        <div class="mt-8">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Assignments</h3>
+          </div>
+
+          <div id="assignments" class="mt-3 overflow-x-auto">
+            <table class="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="text-left p-2 border-b">#</th>
+                  <th class="text-left p-2 border-b">Join code</th>
+                  <th class="text-left p-2 border-b">Elf nickname</th>
+                  <th class="text-left p-2 border-b">Time</th>
+                  <th class="text-left p-2 border-b">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="assignments-body"></tbody>
+            </table>
+            <p class="muted mt-2">Only you can see this table.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-center muted">Built for anonymous, nickname‑only gift draws. Works offline after load. Keep this tab open during the event.</footer>
+  </div>
+
+  <script>
+    (function(){
+      'use strict';
+      const onReady = (fn) => {
+        if (document.readyState === 'complete' || document.readyState === 'interactive') { setTimeout(fn, 0); }
+        else { document.addEventListener('DOMContentLoaded', fn); }
+      };
+
+      onReady(function(){
+        console.log('[ElfDraw] App starting…');
+        // ---- Constants / Utilities ----
+        const KEY = 'elfdraw.v3';
+        const DEFAULT_PIN = '1234';
+        // FIX: robust newline regex (Windows/Unix). The previous pattern caused "Invalid regular expression".
+        const SAFE_NEWLINE = /?
++/; // robust across Windows/Unix newlines
+        const NL = '\\n';
+
+        const GIVEN_23 = [
+          'Cozy Elf','Bloom Elf','Sparkle Elf','Peaceful Elf','Snowflake Elf','Baker Elf','Think Tank Elf','Party Elf','Pixel Elf','Heartfelt Elf','Explorer Chef Elf','Freewheel Elf','Chill Wave Elf','Playmaker Elf','Smile Elf','Wanderlust Elf','Chatty Elf','Mystery Elf','Mighty Elf','Curious Whisker Elf','Wander Elf','Dazzle Elf','Glamour Elf'
+        ];
+
+        function nowISO() { return new Date().toISOString(); }
+        function toast(msg){ alert(msg); }
+
+        function loadState() {
+          try {
+            return JSON.parse(localStorage.getItem(KEY)) || {
+              pinHash: sha1(DEFAULT_PIN),
+              mode: 'local',
+              nicknames: [],
+              pool: [],
+              codes: [],
+              takenByCode: {},
+              history: [],
+              brand: { title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null }
+            };
+          } catch {
+            return { pinHash: sha1(DEFAULT_PIN), mode:'local', nicknames:[], pool:[], codes:[], takenByCode:{}, history:[], brand:{ title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null } };
+          }
+        }
+
+        function saveState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
+        // Tiny hash (obfuscation only; not cryptographic)
+        function sha1(str){ let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return String(h>>>0); }
+
+        let state = loadState();
+
+        // ---- UI Elements ----
+        const els = {
+          modePill: document.getElementById('mode-pill'),
+          codeInput: document.getElementById('code-input'),
+          btnDraw: document.getElementById('btn-draw'),
+          result: document.getElementById('result'),
+          nickname: document.getElementById('nickname'),
+
+          organizerPanel: document.getElementById('organizer-panel'),
+          btnOrganizer: document.getElementById('btn-organizer'),
+          btnReset: document.getElementById('btn-reset'),
+
+          pinInput: document.getElementById('pin-input'),
+          btnUnlock: document.getElementById('btn-unlock'),
+          adminLocked: document.getElementById('admin-locked'),
+
+          adminArea: document.getElementById('admin-area'),
+          nicknamesInput: document.getElementById('nicknames-input'),
+          btnLoadDefaults: document.getElementById('btn-load-defaults'),
+          btnShuffle: document.getElementById('btn-shuffle'),
+          btnSaveNicknames: document.getElementById('btn-save-nicknames'),
+
+          codesInput: document.getElementById('codes-input'),
+          btnGenerateCodes: document.getElementById('btn-generate-codes'),
+          btnSaveCodes: document.getElementById('btn-save-codes'),
+          btnCopyCodes: document.getElementById('btn-copy-codes'),
+
+          btnExport: document.getElementById('btn-export'),
+          importFile: document.getElementById('import-file'),
+
+          btnChangePin: document.getElementById('btn-change-pin'),
+          btnHardReset: document.getElementById('btn-hard-reset'),
+          btnRunTests: document.getElementById('btn-run-tests'),
+
+          assignmentsBody: document.getElementById('assignments-body'),
+
+          // branding
+          eventTitle: document.getElementById('event-title'),
+          eventSub: document.getElementById('event-sub'),
+          orgLogo: document.getElementById('org-logo'),
+          brandTitle: document.getElementById('brand-title'),
+          brandSub: document.getElementById('brand-sub'),
+          brandColor: document.getElementById('brand-color'),
+          brandLogo: document.getElementById('brand-logo'),
+          btnApplyBrand: document.getElementById('btn-apply-brand'),
+          btnClearBrand: document.getElementById('btn-clear-brand'),
+        };
+
+        if (!els.btnOrganizer || !els.btnDraw){
+          console.error('[ElfDraw] Critical elements missing; check HTML IDs.');
+          alert('Load error: some elements not found. Please refresh the page (Ctrl/Cmd+Shift+R).');
+          return;
+        }
+
+        function applyBranding(){
+          els.eventTitle.textContent = state.brand.title || '🎁 Secret Elf Nickname Draw';
+          els.eventSub.textContent = state.brand.sub || 'Anonymous, nickname‑only gift exchange';
+          document.documentElement.style.setProperty('--accent', hexToRgbTuple(state.brand.color || '#6366F1').join(' '));
+          if (state.brand.logoData) { els.orgLogo.src = state.brand.logoData; els.orgLogo.classList.remove('hidden'); }
+          else { els.orgLogo.classList.add('hidden'); }
+          els.brandTitle.value = state.brand.title || '';
+          els.brandSub.value = state.brand.sub || '';
+          els.brandColor.value = state.brand.color || '#6366F1';
+        }
+
+        function renderAssignments(){
+          els.assignmentsBody.innerHTML = '';
+          const entries = Object.entries(state.takenByCode).sort((a,b)=>a[0].localeCompare(b[0]));
+          let i=1;
+          for (const [code, rec] of entries){
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td class="p-2 border-b">'+(i++)+'</td>'+
+                           '<td class="p-2 border-b font-mono">'+code+'</td>'+
+                           '<td class="p-2 border-b">'+rec.name+'</td>'+
+                           '<td class="p-2 border-b">'+new Date(rec.at).toLocaleString()+'</td>'+
+                           '<td class="p-2 border-b"><button class="btn text-xs" data-code="'+code+'">Undo</button></td>';
+            els.assignmentsBody.appendChild(tr);
+          }
+          els.assignmentsBody.querySelectorAll('button[data-code]').forEach(btn=>{
+            btn.addEventListener('click', () => undoAssignment(btn.getAttribute('data-code')));
+          });
+        }
+
+        function undoAssignment(code){
+          if (!confirm('Undo assignment for '+code+'?')) return;
+          const rec = state.takenByCode[code]; if (!rec) return;
+          state.pool.push(rec.name);
+          delete state.takenByCode[code];
+          state.history.push({type:'undo', code, at: nowISO()});
+          saveState(state); renderAssignments(); toast('Assignment undone and nickname returned to pool.');
+        }
+
+        function ensurePoolMatchesNicknames(){
+          const taken = new Set(Object.values(state.takenByCode).map(r=>r.name));
+          state.pool = state.nicknames.filter(n => !taken.has(n));
+        }
+
+        function updateModePill(){ els.modePill.textContent = 'Single‑device mode'; }
+
+        // ---- Event wiring ----
+        els.btnOrganizer.addEventListener('click', () => { els.organizerPanel.classList.toggle('hidden'); });
+
+        els.btnReset.addEventListener('click', () => {
+          const pin = prompt('Enter admin PIN to reset view:'); if (!pin) return;
+          if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; }
+          els.result.classList.add('hidden'); els.nickname.textContent = ''; els.codeInput.value = ''; toast('View cleared.');
+        });
+
+        els.btnUnlock.addEventListener('click', () => {
+          const pin = els.pinInput.value.trim();
+          if (sha1(pin) === state.pinHash){
+            els.adminLocked.classList.add('hidden');
+            els.adminArea.classList.remove('hidden');
+            els.pinInput.value = '';
+            renderAssignments(); applyBranding();
+          } else { toast('Incorrect PIN'); }
+        });
+
+        els.btnLoadDefaults.addEventListener('click', () => {
+          els.nicknamesInput.value = GIVEN_23.join('\n');
+          toast('Loaded the 23 provided elf nicknames. Click Save nicknames.');
+        });
+
+        els.btnShuffle.addEventListener('click', () => {
+          let lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
+          for (let i=lines.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t = lines[i]; lines[i]=lines[j]; lines[j]=t; }
+          els.nicknamesInput.value = lines.join('\n');
+        });
+
+        els.btnSaveNicknames.addEventListener('click', () => {
+          const lines = els.nicknamesInput.value.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
+          if (lines.length === 0) { toast('Please enter at least one nickname.'); return; }
+          state.nicknames = Array.from(new Set(lines));
+          ensurePoolMatchesNicknames(); saveState(state); renderAssignments();
+          toast('Saved '+state.nicknames.length+' nicknames.');
+        });
+
+        els.btnGenerateCodes.addEventListener('click', () => {
+          const count = 23; // default for your event
+          const codes = Array.from({length: count}, (_,i)=> 'P'+String(i+1).padStart(2,'0'));
+          els.codesInput.value = codes.join('\n');
+        });
+
+        els.btnSaveCodes.addEventListener('click', () => {
+          const codes = els.codesInput.value.split(SAFE_NEWLINE).map(s=>s.trim().toUpperCase()).filter(Boolean);
+          if (codes.length === 0) { toast('Please enter at least one join code.'); return; }
+          state.codes = Array.from(new Set(codes)); saveState(state); renderAssignments();
+          toast('Saved '+state.codes.length+' join codes.');
+        });
+
+        if (els.btnCopyCodes) els.btnCopyCodes.addEventListener('click', async () => {
+          const text = els.codesInput.value.trim(); if (!text) { toast('No codes to copy.'); return; }
+          try { await navigator.clipboard.writeText(text); toast('Codes copied to clipboard.'); } catch { toast('Copy failed.'); }
+        });
+
+        els.btnExport.addEventListener('click', () => {
+          const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'elf-draw-state.json'; a.click(); URL.revokeObjectURL(url);
+        });
+
+        els.importFile.addEventListener('change', (e) => {
+          const file = e.target.files[0]; if (!file) return; const rd = new FileReader();
+          rd.onload = () => { try { const imported = JSON.parse(rd.result); if (!imported || typeof imported !== 'object') throw new Error('Invalid JSON'); state = imported; saveState(state); renderAssignments(); ensurePoolMatchesNicknames(); updateModePill(); applyBranding(); toast('State imported.'); } catch(err) { toast('Import failed: '+err.message); } };
+          rd.readAsText(file); e.target.value='';
+        });
+
+        els.btnChangePin.addEventListener('click', () => {
+          const current = prompt('Enter current PIN:'); if (!current || sha1(current) !== state.pinHash) { toast('Wrong PIN'); return; }
+          const next = prompt('Enter new PIN (4+ digits):'); if (!next || next.length < 4) { toast('PIN must be at least 4 characters.'); return; }
+          state.pinHash = sha1(next); saveState(state); toast('PIN changed.');
+        });
+
+        els.btnHardReset.addEventListener('click', () => {
+          const p1 = prompt('Enter admin PIN to hard reset:'); if (!p1 || sha1(p1) !== state.pinHash) { toast('Wrong PIN'); return; }
+          if (!confirm('Clear assignments and restore full nickname pool?')) return;
+          state.takenByCode = {}; state.history = []; ensurePoolMatchesNicknames(); saveState(state); renderAssignments(); toast('Hard reset complete.');
+        });
+
+        if (els.btnRunTests) els.btnRunTests.addEventListener('click', runSelfTests);
+
+        els.btnDraw.addEventListener('click', () => {
+          const code = els.codeInput.value.trim().toUpperCase();
+          if (!code) { toast('Enter your join code (ask the organizer).'); return; }
+          if (!state.codes.includes(code)) { toast('Unknown join code.'); return; }
+          if (state.takenByCode[code]) { els.nickname.textContent = state.takenByCode[code].name; els.result.classList.remove('hidden'); return; }
+          if (state.pool.length === 0) { toast('No nicknames left. Ask the organizer.'); return; }
+
+          // Randomly pick from pool (guarantees uniqueness because we remove it)
+          const idx = Math.floor(Math.random() * state.pool.length);
+          const name = state.pool.splice(idx, 1)[0];
+          state.takenByCode[code] = { name, at: nowISO() };
+          state.history.push({type:'assign', code, name, at: nowISO()});
+          saveState(state);
+          els.nickname.textContent = name; els.result.classList.remove('hidden'); renderAssignments();
+        });
+
+        // Branding helpers
+        function hexToRgbTuple(hex){ hex = hex.replace('#',''); if (hex.length===3){ hex = hex.split('').map(x=>x+x).join(''); } const num = parseInt(hex,16); return [ (num>>16)&255, (num>>8)&255, num&255 ]; }
+        async function fileToDataUrl(file){ return await new Promise((res, rej)=>{ const rd = new FileReader(); rd.onload = ()=>res(rd.result); rd.onerror = rej; rd.readAsDataURL(file); }); }
+
+        els.btnApplyBrand.addEventListener('click', async () => {
+          state.brand.title = els.brandTitle.value || '🎁 Secret Elf Nickname Draw';
+          state.brand.sub = els.brandSub.value || 'Anonymous, nickname‑only gift exchange';
+          state.brand.color = els.brandColor.value || '#6366F1';
+          const file = els.brandLogo.files && els.brandLogo.files[0]; if (file) { state.brand.logoData = await fileToDataUrl(file); }
+          saveState(state); applyBranding(); toast('Branding applied.');
+        });
+
+        els.btnClearBrand.addEventListener('click', () => { state.brand = { title:'🎁 Secret Elf Nickname Draw', sub:'Anonymous, nickname‑only gift exchange', color:'#6366F1', logoData:null }; saveState(state); applyBranding(); });
+
+        // ---- Self-tests ----
+        function runSelfTests(){
+          console.clear();
+          console.log('Running self-tests...');
+          // Test 1: GIVEN_23 integrity
+          console.assert(GIVEN_23.length === 23, 'GIVEN_23 should have 23 names');
+          console.assert(new Set(GIVEN_23).size === 23, 'GIVEN_23 contains duplicates');
+
+          // Test 2: Split/join roundtrip using robust newline regex
+          const joined = GIVEN_23.join('\n');
+          const split = joined.split(SAFE_NEWLINE).map(s=>s.trim()).filter(Boolean);
+          console.assert(split.length === 23, 'Split on SAFE_NEWLINE should yield 23');
+
+          // Test 3: Uniqueness in simulated draws
+          const simPool = [...GIVEN_23]; const seen = new Set();
+          for (let i=0;i<23;i++){ const idx = Math.floor(Math.random()*simPool.length); const name = simPool.splice(idx,1)[0]; console.assert(!seen.has(name), 'Duplicate draw: '+name); seen.add(name); }
+          console.assert(simPool.length===0, 'Pool should be empty after 23 draws');
+
+          // Test 4: CRLF handling (Windows newlines) explicitly
+          const crlf = 'A\r\nB\r\nC';
+          const out = crlf.split(SAFE_NEWLINE);
+          console.assert(out.length === 3 && out[0]==='A' && out[1]==='B' && out[2]==='C', 'CRLF split failed');
+
+          // Test 5: Attempt to over-draw beyond pool size should block
+          const tmpState = { pool:[...GIVEN_23] };
+          let blocked = false; for (let i=0;i<24;i++){ if (tmpState.pool.length===0){ blocked = true; break; } tmpState.pool.splice(Math.floor(Math.random()*tmpState.pool.length),1); }
+          console.assert(blocked, 'Over-draw should be blocked when pool is empty');
+
+          console.log('Self-tests passed ✔'); alert('Self-tests passed ✔ (see console for details)');
+        }
+
+        // ---- Initial load ----
+        function init(){
+          updateModePill(); applyBranding();
+          if (!state.nicknames || state.nicknames.length === 0) { els.nicknamesInput.value = GIVEN_23.join('\n'); els.btnSaveNicknames.click(); }
+          if (!state.codes || state.codes.length === 0) { els.btnGenerateCodes.click(); els.btnSaveCodes.click(); }
+        }
+
+        init();
+        console.log('[ElfDraw] App ready.');
+        // Expose minimal API for inline onclick fallbacks & debugging
+        window.ElfDraw = {
+          toggleOrganizer(){ els.organizerPanel.classList.toggle('hidden'); },
+          resetView(){ const pin = prompt('Enter admin PIN to reset view:'); if (!pin) return; if (sha1(pin) !== state.pinHash) { toast('Wrong PIN'); return; } els.result.classList.add('hidden'); els.nickname.textContent=''; els.codeInput.value=''; toast('View cleared.'); },
+          unlock(){ const pin = els.pinInput.value.trim(); if (sha1(pin)===state.pinHash){ els.adminLocked.classList.add('hidden'); els.adminArea.classList.remove('hidden'); els.pinInput.value=''; renderAssignments(); applyBranding();} else { toast('Incorrect PIN'); } },
+        };
+        const jsStatus = document.getElementById('js-status'); if (jsStatus){ jsStatus.textContent='JS initialized ✓'; jsStatus.classList.remove('hidden'); }
+      });
+    })();
+          // Watchdog: if JS didn't expose ElfDraw within 2s, show banner
+        setTimeout(function(){
+          if (!window.ElfDraw) {
+            const warn = document.createElement('div');
+            warn.className = 'card p-4 mb-4 text-red-800 bg-red-50 border border-red-200';
+            warn.textContent = '⚠️ Script init failed. Try a hard refresh (Ctrl/Cmd+Shift+R). If this persists, open DevTools → Console and share any red errors.';
+            const container = document.querySelector('.max-w-3xl');
+            container && container.prepend(warn);
+          }
+        }, 2000);
+      });
+    })();
+  </script>
+</body>
+</html>
